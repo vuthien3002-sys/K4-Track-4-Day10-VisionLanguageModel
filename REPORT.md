@@ -11,12 +11,12 @@ Họ tên: Vu Duc Thien
 | E3 | + LoRA ViT | 148,426,752 | 8.22 | 22.4 | **0.405** | [0.360, 0.449] | 0.97 | 0.284 | 0.319 | 0.676 |
 | E4 | `data_size` = 0.1 (E3, 142 ảnh) | 148,426,752 | 7.67 | 22.6 | 0.271 | [0.237, 0.306] | 1.69 | 0.212 | 0.182 | 0.567 |
 | E4 | `data_size` = 1.0 (= E3) | 148,426,752 | 8.22 | 22.4 | 0.405 | [0.360, 0.449] | 0.97 | 0.284 | 0.319 | 0.676 |
-| E5 | GRPO từ E3 (bonus) | 39,321,600² | – | 18.1 | **0.434** | [0.388, 0.481] | 0.80 | 0.320 | 0.337 | 0.706 |
+| E5 | GRPO từ E3 (bonus) | 39,321,600² | 5.65² | 18.1 | **0.434** | [0.388, 0.481] | 0.80 | 0.320 | 0.337 | 0.706 |
 
 Chung cho E1–E4: QLoRA NF4 (chỉ 252 Linear của LLM bị lượng tử hoá), r = 16, alpha = 32, lr 2e-4, batch 2 × tích luỹ 4, 300 bước, seed 42, Colab T4. `parse_valid_rate`: E0 0.842 · E1 0.994 · E2 0.997 · E3, E4, E5 1.000.
 
 ¹ E1 được đo ngay sau ô chạy thử trong cùng session: ở bước 1 VRAM đỉnh đã là 8.51 GB, cao hơn cả đỉnh của E2 (8.04 GB) dù E2 có thêm projector float32. Lần chạy thử 10 bước với đúng cấu hình E1 (cùng batch, cùng model) chỉ đỉnh 6.35 GB. Vì vậy 9.62 GB nhiều khả năng gồm cả bộ nhớ còn sót lại từ các ô trước, không phải chi phí thật của E1. Bảng vẫn ghi đúng số trong `meta`.
-² GRPO chỉ cập nhật LoRA của E3 (33,030,144 LLM + 6,291,456 ViT); projector giữ nguyên như SFT. E5 không có `meta` vì không thuộc E1–E3; thời gian lấy từ `report/e5_grpo_log.json`.
+² GRPO chỉ cập nhật LoRA của E3 (33,030,144 LLM + 6,291,456 ViT); projector giữ nguyên như SFT. E5 không có `meta` vì không thuộc E1–E3; thời gian lấy từ `report/e5_grpo_log.json`, VRAM đỉnh lấy từ log trong `lab_day10.ipynb` (mục 8).
 
 Ảnh minh hoạ: `report/figures/` (dữ liệu: `data_samples.jpg`; dự đoán E3: `e3_good_1..3.jpg`, `e3_bad_1..3.jpg`, gộp trong `e3_examples.jpg`; loss: `loss_curves.png`; GRPO: `e5_grpo.png`). Số phân tích bổ sung tái lập bằng `python -m day10.analysis`.
 
