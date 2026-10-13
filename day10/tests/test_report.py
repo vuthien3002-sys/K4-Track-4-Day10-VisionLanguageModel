@@ -35,3 +35,15 @@ def test_pick_examples_disjoint():
     good, bad = pick_examples(entries, preds, 3, 3)
     assert {e["image_id"] for e in good} == {"i0", "i1"}
     assert {e["image_id"] for e in bad} == {"i2", "i3"}
+
+
+def test_paired_bootstrap_identical_and_better():
+    from day10.report import paired_bootstrap_f1
+    entries = [dict(ENTRY, image_id=f"i{k}") for k in range(20)]
+    ok = json.dumps([{"label": "pothole", "bbox_2d": [100, 100, 200, 200]}])
+    good = {e["image_id"]: ok for e in entries}
+    half = {e["image_id"]: (ok if k % 2 else "[]") for k, e in enumerate(entries)}
+    same = paired_bootstrap_f1(entries, good, good, n_boot=200)
+    assert same["delta"] == 0 and same["ci95"] == [0, 0]
+    up = paired_bootstrap_f1(entries, half, good, n_boot=200)
+    assert up["delta"] > 0 and up["ci95"][0] > 0 and up["p_not_better"] == 0

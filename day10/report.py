@@ -107,3 +107,23 @@ def summary_rows(evidence_dir="report/evidence"):
             _fmt(m.get("train_minutes", ""), 1), _fmt(d["micro"]["f1"]), f"[{ci[0]:.3f}, {ci[1]:.3f}]",
             _fmt(d["fp_per_image"], 2), *(_fmt(pc[c]["f1"]) for c in CLASSES)]) + " |")
     return rows
+
+
+def paired_bootstrap_f1(entries, preds_a, preds_b, n_boot=1000, seed=0, coord="norm1000"):
+    """ΔF1 = F1(B) − F1(A) trên cùng các ảnh được lấy lại mẫu: chặt hơn việc so hai CI95 riêng lẻ."""
+    import random
+
+    from scripts.score import _prf
+
+    rows = [(image_result(e, preds_a.get(e["image_id"]), coord)[1:],
+             image_result(e, preds_b.get(e["image_id"]), coord)[1:]) for e in entries]
+
+    def f1(sample, k):
+        tp, fp, fn = (sum(r[k][i] for r in sample) for i in range(3))
+        return _prf(tp, fp, fn)["f1"]
+
+    rng, n = random.Random(seed), len(rows)
+    diffs = sorted(f1(s, 1) - f1(s, 0) for s in ([rows[rng.randrange(n)] for _ in range(n)] for _ in range(n_boot)))
+    return {"delta": f1(rows, 1) - f1(rows, 0),
+            "ci95": [diffs[int(0.025 * n_boot)], diffs[max(int(0.975 * n_boot) - 1, 0)]],
+            "p_not_better": sum(d <= 0 for d in diffs) / n_boot}
