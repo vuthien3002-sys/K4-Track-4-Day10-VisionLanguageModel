@@ -44,7 +44,7 @@ Mỗi mục ghi: triệu chứng, nguyên nhân, cách xử lý trong `day10/`, 
 ## 8. GRPO (TRL 1.9.2)
 
 - TRL tự đổi tham số huấn luyện của model lượng tử sang **bf16**. Với lr 5e-6, phần lớn cập nhật bị làm tròn mất. `run_grpo` đưa chúng về float32 trước khi optimizer được tạo.
-- T4 không có bf16: đặt `fp16=True, bf16=False`. Có 2/60 bước bị GradScaler bỏ qua vì gradient tràn số.
+- Code viết cho T4 (không hỗ trợ bf16) nên đặt `fp16=True, bf16=False`. Lần chạy thực tế dùng A100 40 GB nhưng vẫn giữ fp16 để cùng cấu hình với SFT. Có 2/60 bước bị GradScaler bỏ qua vì gradient tràn số.
 - Cột `gt` (JSON) đi vào reward qua `**kwargs`. Completion có dạng hội thoại `[{"role": "assistant", "content": …}]`.
 
 ## 9. Đo VRAM

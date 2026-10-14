@@ -13,7 +13,7 @@ Họ tên: Vu Duc Thien
 | E4 | `data_size` = 1.0 (= E3) | 148,426,752 | 8.22 | 22.4 | 0.405 | [0.360, 0.449] | 0.97 | 0.284 | 0.319 | 0.676 |
 | E5 | GRPO từ E3 (bonus) | 39,321,600² | 5.65² | 18.1 | **0.434** | [0.388, 0.481] | 0.80 | 0.320 | 0.337 | 0.706 |
 
-Chung cho E1–E4: QLoRA NF4 (chỉ 252 Linear của LLM bị lượng tử hoá), r = 16, alpha = 32, lr 2e-4, batch 2 × tích luỹ 4, 300 bước, seed 42, Colab T4. `parse_valid_rate`: E0 0.842 · E1 0.994 · E2 0.997 · E3, E4, E5 1.000.
+Chung cho E1–E4: QLoRA NF4 (chỉ 252 Linear của LLM bị lượng tử hoá), r = 16, alpha = 32, lr 2e-4, batch 2 × tích luỹ 4, 300 bước, seed 42. Phần cứng: Colab **NVIDIA A100-SXM4-40GB** (theo `nvidia-smi` của session chạy E2–E5 trong notebook; E0, E1 chạy ở session trước với cùng cấu hình), vẫn giữ fp16 + GradScaler như cấu hình dành cho T4 của đề. VRAM đỉnh mọi thí nghiệm ≤ 9.62 GB, tức vẫn vừa T4 16 GB; còn thời gian (phút) là đo trên A100, chạy trên T4 sẽ lâu hơn. `parse_valid_rate`: E0 0.842 · E1 0.994 · E2 0.997 · E3, E4, E5 1.000.
 
 ¹ E1 được đo ngay sau ô chạy thử trong cùng session: ở bước 1 VRAM đỉnh đã là 8.51 GB, cao hơn cả đỉnh của E2 (8.04 GB) dù E2 có thêm projector float32. Lần chạy thử 10 bước với đúng cấu hình E1 (cùng batch, cùng model) chỉ đỉnh 6.35 GB. Vì vậy 9.62 GB nhiều khả năng gồm cả bộ nhớ còn sót lại từ các ô trước, không phải chi phí thật của E1. Bảng vẫn ghi đúng số trong `meta`.
 ² GRPO chỉ cập nhật LoRA của E3 (33,030,144 LLM + 6,291,456 ViT); projector giữ nguyên như SFT. E5 không có `meta` vì không thuộc E1–E3; thời gian lấy từ `report/e5_grpo_log.json`, VRAM đỉnh lấy từ log trong `lab_day10.ipynb` (mục 8).
@@ -64,7 +64,7 @@ Qwen3-VL biểu diễn toạ độ bằng số nguyên tương đối trên than
 
 ### Câu 4 — Mask loss: vì sao chỉ tính loss trên phần trả lời? Điều gì xảy ra nếu tính trên cả prompt và token ảnh?
 
-Một ví dụ điển hình có **371 token = 220 token ảnh + 92 token prompt/template + 59 token trả lời** (trung vị trên train, đã tính `<|im_end|>\n`). Như vậy chỉ **15.9%** token được tính loss. Ảnh nhiều hư hại nhất (9 box) có 562 token, trong đó 250 token trả lời. Giải mã riêng các vị trí `labels != -100` cho ra đúng chuỗi JSON đáp án và kết thúc bằng `<|im_end|>`.
+Một ví dụ điển hình có **371 token = 220 token ảnh + 92 token prompt/template + 59 token trả lời** (trung vị trên train, đã tính `<|im_end|>\n`). Như vậy chỉ **15.9%** token được tính loss. Ảnh train đầu tiên có box (9 box, in trong mục 4 của notebook) có 562 token, trong đó 250 token trả lời (44.5%). Giải mã riêng các vị trí `labels != -100` cho ra đúng chuỗi JSON đáp án và kết thúc bằng `<|im_end|>`.
 
 Lý do chỉ tính loss trên phần trả lời:
 - Mục tiêu là p(JSON | ảnh, prompt). 220 vị trí ảnh chỉ là token giữ chỗ `<|image_pad|>` (embedding của chúng bị thay bằng đặc trưng ViT), nên "dự đoán" token giữ chỗ tiếp theo là vô nghĩa.
@@ -116,7 +116,7 @@ Cả hai bước đều **đáng**: khoảng tin cậy của chênh lệch đề
 - **LoRA trên ViT (E3)** chỉ thêm 6.3M tham số nhưng tốn thêm 26% thời gian (gradient phải đi ngược qua 24 block ViT) và +0.18 GB VRAM. Đổi lại, cả ba lớp đều tăng, rõ nhất là pothole (0.178 → 0.284): ViT gốc chưa được dạy để phân biệt kết cấu nhỏ của ổ gà và vết nứt.
 - E3 cũng có FP/ảnh thấp nhất (0.97 so với 1.29 của E1). Đường loss trong `report/figures/loss_curves.png` xếp đúng thứ tự E3 < E2 < E1 ở cuối quá trình (trung bình 10 bước cuối: 0.50 / 0.54 / 0.58).
 
-Setup đáng đồng tiền nhất là **E3**: F1 cao nhất, tăng 0.151 [+0.112, +0.194] so với E1, chỉ thêm 5 phút trên T4 và vẫn dư VRAM. Về VRAM, theo lý thuyết thứ tự phải là E3 > E2 > E1. Số của E1 bị đội lên do bộ nhớ còn sót trong session (xem chú thích ¹); đo sạch với cấu hình E1 chỉ 6.35 GB. Vậy mở projector float32 tốn khoảng +1.7 GB, và LoRA ViT thêm khoảng +0.2 GB.
+Setup đáng đồng tiền nhất là **E3**: F1 cao nhất, tăng 0.151 [+0.112, +0.194] so với E1, chỉ thêm 4.6 phút (đo trên A100), và VRAM 8.22 GB vẫn nằm trong giới hạn 16 GB của T4. Về VRAM, theo lý thuyết thứ tự phải là E3 > E2 > E1. Số của E1 bị đội lên do bộ nhớ còn sót trong session (xem chú thích ¹); đo sạch với cấu hình E1 chỉ 6.35 GB. Vậy mở projector float32 tốn khoảng +1.7 GB, và LoRA ViT thêm khoảng +0.2 GB.
 
 ### Câu 8 — Tập test có 311 ảnh: khoảng tin cậy rộng thế nào, và điều đó giới hạn kết luận so sánh các setup ra sao?
 
@@ -160,8 +160,8 @@ Với setup tốt nhất E3, **pothole kém nhất (F1 0.284, recall 0.264)**, t
 ![E3: hàng trên đúng, hàng dưới sai](report/figures/e3_examples.jpg)
 
 - `e3_good_1..3`: chủ yếu là nắp cống rõ nét gần xe. TP bằng số GT, không có FP.
-- `e3_bad_1`: mặt đường xuống cấp có 4 GT. Model đặt 5 box crack và pothole lệch vị trí, nên TP = 0.
-- `e3_bad_2`: một đoạn đường đầy ổ gà có 7 GT. Model gộp tất cả thành **một box crack khổng lồ**, đúng lỗi "độ chi tiết của nhãn" nêu ở trên.
+- `e3_bad_1`: mặt đường xuống cấp có 4 GT. Model đặt 5 box nhưng đều lệch vị trí hoặc sai kích thước, nên TP = 0.
+- `e3_bad_2`: một đoạn đường có 7 hư hại nhỏ (7 GT). Model gộp tất cả thành **một box crack khổng lồ**, đúng lỗi "độ chi tiết của nhãn" nêu ở trên.
 - `e3_bad_3`: 4 hư hại nhỏ trên đường dốc. Box dự đoán rơi đúng vùng nhưng lệch và sai kích thước, IoU < 0.5.
 
 ### Câu 10 — E4: bạn đổi biến nào, kết quả thế nào, và kết luận có đáng tin không?
@@ -185,14 +185,14 @@ Mình đổi **`data_size`** trên setup tốt nhất E3: **10%** (142 ảnh l�
 
 - **Reward** (`day10/reward.py`): trả 0 nếu JSON hỏng; trả 1 nếu cả GT và dự đoán đều rỗng; ngược lại trả 0.2 + 0.8 · ΣIoU / max(n_gt, n_pred, 1), với các cặp được ghép tham lam theo IoU giảm dần, cùng lớp, chỉ nhận IoU ≥ 0.5. GT được tạo bằng cùng công thức với `score.py`.
 - **Test** (`day10/tests/test_reward.py`, chạy `python -m pytest day10/tests -q`): 5 ca bắt buộc (hoàn hảo 1.0, JSON hỏng 0.0, sai nhãn 0.2, thừa box 0.6, cùng rỗng 1.0), cộng thêm box khổng lồ 0.2, `[]` khi có GT 0.2, IoU dưới ngưỡng, box suy biến và định dạng completion của TRL.
-- **Chạy:** `trl==1.9.2`, khởi tạo từ adapter E3. 60 bước, lr 5e-6, beta 0, 4 lần sinh cho mỗi prompt, 2 prompt mỗi bước (tổng 120 ảnh train), `max_completion_length` = 128. Mất 18.1 phút trên T4. Log ở `report/e5_grpo_log.json`, biểu đồ ở `report/figures/e5_grpo.png`. Có 2 bước (23 và 55) bị GradScaler fp16 bỏ qua vì gradient tràn số.
+- **Chạy:** `trl==1.9.2`, khởi tạo từ adapter E3. 60 bước, lr 5e-6, beta 0, 4 lần sinh cho mỗi prompt, 2 prompt mỗi bước (tổng 120 ảnh train), `max_completion_length` = 128. Mất 18.1 phút trên A100, VRAM đỉnh 5.65 GB. Log ở `report/e5_grpo_log.json`, biểu đồ ở `report/figures/e5_grpo.png`. Có 2 bước (23 và 55) bị GradScaler fp16 bỏ qua vì gradient tràn số.
 
 **So với SFT (E3):** F1 tăng từ 0.405 lên **0.434** [0.388, 0.481]. Bootstrap ghép cặp cho Δ = **+0.029, CI95 [+0.012, +0.046]**: nhỏ nhưng nhất quán, dù hai CI riêng chồng nhau. Phần tăng đến từ precision (0.426 → 0.481, FP/ảnh 0.97 → 0.80); recall gần như giữ nguyên (0.386 → 0.395). F1 của cả ba lớp đều tăng nhẹ (pothole 0.284 → 0.320, crack 0.319 → 0.337, manhole 0.676 → 0.706).
 
 **Có reward hacking không?** Không thấy dấu hiệu:
 - **Không lười trả `[]`:** tỷ lệ output rỗng là 0% ở cả E3 và E5.
 - **Không có box khổng lồ:** diện tích box trung bình 2.2% khung hình ở E3, 2.5% ở E5.
-- **Model chỉ thận trọng hơn:** 1.70 → 1.54 box/ảnh, và completion ngắn lại (59 → 52 token). Đây đúng là hướng mà mẫu số max(n_gt, n_pred) khuyến khích. Nếu model đang hack bằng cách bỏ sót thì recall phải giảm, nhưng recall không giảm.
+- **Model chỉ thận trọng hơn:** trên test, số box giảm từ 1.70 xuống 1.54 box/ảnh; trong lúc train GRPO, completion ngắn lại (trung bình 59 → 52 token, 10 bước đầu so với 10 bước cuối). Đây đúng là hướng mà mẫu số max(n_gt, n_pred) khuyến khích. Nếu model đang hack bằng cách bỏ sót thì recall phải giảm, nhưng recall không giảm.
 
 Điểm cần lưu ý cho phân tích:
 - Mức sàn 0.2 khiến `[]` "an toàn" khi model không chắc, nên mô hình có thể bị đẩy về phía bỏ sót nếu chạy lâu hơn.

@@ -2,7 +2,7 @@
 
 ## Tiến độ theo GUIDE
 
-- [x] Bước 0: môi trường Colab T4, `pytest` của đề pass (68 passed, 1 skipped), test riêng `day10/tests` pass
+- [x] Bước 0: môi trường Colab (chạy trên A100 40 GB; VRAM đỉnh ≤ 9.62 GB, vừa T4 16 GB), `pytest` của đề pass (68 passed, 1 skipped), test riêng `day10/tests` pass
 - [x] Bước 1: dữ liệu `d10-21e4070301`, split 1,422 / 276 / 311 ảnh, không có phiên nào nằm ở hai split
 - [x] Bước 2: YOLO → JSON thang 0–1000, sắp box theo (y1, x1), quy ngược về pixel lệch trung vị 0.24 px
 - [x] Bước 3: E0 zero-shot → `report/evidence/e0.json` (F1 0.088, parse_valid_rate 0.842)
